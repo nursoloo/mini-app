@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>MAT Clicker - Legend Edition</title>
+    <style>
+        :root {
+            --gold: #FFD700;
+            --ton: #00A3FF;
+            --orange: #FF8C00;
+            --bg: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+        
+        body {
+            margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; color: #fff;
+            background: var(--bg); height: 100vh; overflow: hidden; text-align: center;
+        }
+
+        #stars-container { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+
+        /* ТЕ САМЫЕ КОМЕТЫ */
+        .comet {
+            position: absolute; width: 2px; height: 2px; background: #fff;
+            box-shadow: 0 0 10px #fff, 0 0 20px var(--ton);
+            animation: shoot 2s linear infinite; pointer-events: none; z-index: 0;
+        }
+        @keyframes shoot {
+            0% { transform: translateX(100vw) translateY(0) rotate(45deg); opacity: 1; }
+            100% { transform: translateX(-100vw) translateY(100vh) rotate(45deg); opacity: 0; }
+        }
+
+        .page-container { position: relative; z-index: 1; height: calc(100vh - 80px); overflow-y: auto; padding: 20px; }
+        .page { display: none; flex-direction: column; align-items: center; }
+        .active-page { display: flex; }
+
+        /* ВЕРХНЯЯ КАРТОЧКА */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 20px; width: 100%; margin-bottom: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .balance-main { font-size: 42px; font-weight: 900; color: var(--gold); text-shadow: 0 0 20px rgba(255,215,0,0.5); }
+        
+        /* ТА САМАЯ ОРАНЖЕВАЯ МОНЕТА */
+        .coin-container { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 300px; }
+        .coin {
+            width: 270px; height: 270px;
+            background: linear-gradient(135deg, #FFB347 0%, #FF8C00 50%, #E67E22 100%);
+            border-radius: 50%; border: 8px solid #D35400;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 130px; font-weight: 900; color: #fff;
+            box-shadow: 0 0 60px rgba(255, 140, 0, 0.6), inset 0 0 20px rgba(255,255,255,0.3);
+            position: relative; transition: transform 0.05s;
+            cursor: pointer; margin-top: 100px;
+        }
+        .coin:active { transform: scale(0.92); }
+        .coin::after { content: 'MTX'; position: absolute; bottom: 40px; font-size: 26px; letter-spacing: 2px; text-shadow: 2px 2px 5px rgba(0,0,0,0.5); }
+
+        /* АВАТАРКА */
+        #avatar-display {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,215,0,0.5);
+        }
+
+        /* ЭНЕРГИЯ */
+        .bar-container { width: 100%; max-width: 300px; margin-top: 60px; }
+        .bar { height: 12px; background: rgba(0,0,0,0.5); border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); }
+        .fill { height: 100%; background: linear-gradient(90deg, var(--orange), var(--gold)); width: 100%; transition: width 0.2s; }
+
+        /* БУСТЫ / ТОПЫ */
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .btn-boost { background: var(--orange); color: white; border: none; padding: 8px 15px; border-radius: 10px; font-weight: bold; cursor: pointer; transition: transform 0.2s, opacity 0.2s; }
+        .btn-boost:hover:not(:disabled) { transform: translateY(-1px); }
+        .btn-boost:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* НАВИГАЦИЯ */
+        .nav { position: fixed; bottom: 0; width: 100%; height: 80px; background: rgba(0,0,0,0.8); backdrop-filter: blur(20px); display: flex; justify-content: space-around; align-items: center; border-top: 1px solid rgba(255,255,255,0.1); }
+        .nav-item { opacity: 0.5; font-size: 11px; cursor: pointer; color: #fff; display: flex; flex-direction: column; }
+        .nav-item.active { opacity: 1; color: var(--gold); }
+        .nav-icon { font-size: 24px; margin-bottom: 4px; }
+
+        /* ЦИФРЫ ПРИ КЛИКЕ */
+        .fly { position: absolute; font-size: 38px; font-weight: 900; color: var(--gold); animation: flyUp 0.7s forwards; pointer-events: none; z-index: 100; text-shadow: 0 0 10px #000; }
+        @keyframes flyUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-150px) scale(1.2); } }
+
+        /* РУЛЕТКА */
+        .roulette-wheel { width: 330px; height: 330px; border-radius: 50%; background: radial-gradient(circle at center, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.03) 38%, rgba(17,32,60,0.95) 100%); border: 14px solid rgba(13,35,72,0.95); position: relative; margin: 0 auto; overflow: hidden; box-shadow: 0 0 60px rgba(255,215,100,0.18), inset 0 0 0 1px rgba(255,255,255,0.05); }
+        .roulette-wheel::before { content: ''; position: absolute; inset: 18px; border-radius: 50%; background: radial-gradient(circle at center, rgba(255,255,255,0.18), rgba(255,255,255,0.02) 40%, transparent 56%); z-index: 1; pointer-events: none; }
+        .roulette-wheel::after { content: 'M'; position: absolute; top: 50%; left: 50%; width: 62px; height: 62px; margin: -31px; border-radius: 50%; background: linear-gradient(135deg, #FFB347 0%, #FF8C00 50%, #E67E22 100%); box-shadow: 0 0 0 6px rgba(255,255,255,0.2), 0 0 30px rgba(255,165,0,0.22); z-index: 5; color: #ffffff; font-size: 34px; font-weight: 900; display: flex; align-items: center; justify-content: center; line-height: 1; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+        .roulette-pointer { position: absolute; left: 50%; top: 294px; width: 0; height: 0; border-left: 18px solid transparent; border-right: 18px solid transparent; border-top: 24px solid #ffffff; transform: translateX(-50%); z-index: 6; pointer-events: none; filter: drop-shadow(0 0 18px rgba(255,255,255,0.6)); }
+        .roulette-wheel .segment { position: absolute; width: 50%; height: 50%; top: 0; right: 50%; transform-origin: 100% 100%; clip-path: polygon(0 0, 100% 0, 100% 100%); border: 1px solid rgba(255,255,255,0.12); overflow: visible; }
+        .roulette-wheel .segment:nth-child(1) { background: linear-gradient(140deg, #ff4a1a, #ff4c1a); }
+        .roulette-wheel .segment:nth-child(odd):not(:first-child) { background: linear-gradient(140deg, #d3931c, #c48f20); }
+        .roulette-wheel .segment:nth-child(even) { background: linear-gradient(140deg, #b2851a, #a1741a); }
+        .roulette-wheel .segment .label { position: absolute; left: 50%; top: 50%; width: 128px; transform-origin: 0 50%; font-size: 14px; font-weight: 900; color: #ffffff; background: rgba(0,0,0,0.32); padding: 6px 10px; border-radius: 14px; box-shadow: 0 0 14px rgba(0,0,0,0.35); text-shadow: 0 0 6px rgba(0,0,0,0.8); letter-spacing: 0.03em; text-align: center; line-height: 1.1; white-space: nowrap; z-index: 4; }
+        .roulette-wheel.spin { transition: transform 3.5s cubic-bezier(0.25, 0.1, 0.25, 1); }
+        .roulette-result { margin-top: 18px; font-size: 15px; color: rgba(255,255,255,0.96); min-height: 32px; }
+        .roulette-card { position: relative; padding-top: 18px; padding-bottom: 20px; display: flex; flex-direction: column; align-items: center; }
+        .roulette-info { color: rgba(255,255,255,0.9); font-size: 15px; line-height: 1.7; text-align: center; }
+        .roulette-won { margin-top: 12px; font-size: 18px; font-weight: 900; color: #fff6a8; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+        .roulette-button { margin-top: 20px; min-width: 260px; padding: 16px 28px; position: relative; z-index: 10; font-size: 16px; font-weight: 900; color: #222; background: linear-gradient(90deg, #ffd07d, #f6c25a); border: none; border-radius: 28px; box-shadow: 0 15px 35px rgba(255,210,105,0.35); cursor: pointer; }
+        .roulette-button:hover:not(:disabled) { transform: translateY(-1px); }
+        .roulette-button:disabled { opacity: 0.6; cursor: not-allowed; }
+        .roulette-star { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,1), rgba(255,255,255,0)); box-shadow: 0 0 12px rgba(255,255,255,0.9); pointer-events: none; animation: star-fly 1s ease-out forwards; }
+        @keyframes star-fly { 0% { opacity: 1; transform: translate(0,0) scale(1); } 100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.3); } }
+    </style>
+</head>
+<body>
+
+    <div id="stars-container"></div>
+
+    <div class="page-container">
+        <div id="mining" class="page active-page">
+            <div class="glass-card">
+                <div class="balance-main"><span id="bal">0</span> $MTX</div>
+                <div style="color: var(--ton); font-weight: bold;">💎 <span id="ton-bal">0.000</span> TON</div>
+            </div>
+            
+            <div style="color: var(--gold); font-weight: bold; font-size: 20px;">Уровень <span id="lvl-display">1</span></div>
+            
+            <div class="coin-container">
+                <div class="coin" id="coin">M</div>
+            </div>
+
+            <div class="bar-container">
+                <div style="margin-bottom: 5px;">⚡ <span id="nrg">200</span> / <span id="max-nrg">200</span></div>
+                <div class="bar"><div class="fill" id="nrg-fill"></div></div>
+            </div>
+        </div>
+
+        <div id="boosts" class="page">
+            <h2>Магазин Бустов</h2>
+            <div class="glass-card">
+                <div class="item-row">
+                    <div style="text-align:left;"><b>Сила клика</b><br><small>Уровень <span id="b-tap-lvl">1</span></small></div>
+                    <button class="btn-boost" onclick="buyBoost('tap')"><span id="b-tap-price">100</span> <span id="b-tap-cur">$MTX</span></button>
+                </div>
+                <div class="item-row">
+                    <div style="text-align:left;"><b>Макс. Энергия</b><br><small>Запас: <span id="b-cap-val">200</span></small></div>
+                    <button class="btn-boost" onclick="buyBoost('cap')"><span id="b-cap-price">150</span> <span id="b-cap-cur">$MTX</span></button>
+                </div>
+                <div class="item-row" style="border:none;">
+                    <div style="text-align:left;"><b>Скорость регена</b><br><small>Уровень <span id="b-reg-lvl">1</span></small></div>
+                    <button class="btn-boost" onclick="buyBoost('reg')"><span id="b-reg-price">200</span> <span id="b-reg-cur">$MTX</span></button>
+                </div>
+            </div>
+        </div>
+
+        <div id="top" class="page">
+            <h2>Топ Игроков</h2>
+            <div class="glass-card" id="top-list"></div>
+        </div>
+
+        <div id="roulette" class="page">
+            <h2>Рулетка</h2>
+            <div class="glass-card roulette-card">
+                <div class="roulette-pointer"></div>
+                <div class="roulette-wheel" id="roulette-wheel"></div>
+                <div class="roulette-result" id="roulette-result">Нажмите кнопку, чтобы начать вращение</div>
+                <button id="roulette-spin-btn" class="btn-boost roulette-button" onclick="spinRoulette()">Крутить</button>
+            </div>
+            <div class="glass-card">
+                <div class="roulette-info">
+                    <b>Шансы выпадения</b><br>
+                    100 $MTX — 33%<br>
+                    200 $MTX — 26%<br>
+                    300 $MTX — 20%<br>
+                    500 $MTX — 12%<br>
+                    1000 $MTX — 5%<br>
+                    0.01 TON — 1%<br>
+                    0.05 TON — 0.5%<br>
+                    0.1 TON — 0.2%<br>
+                    0.5 TON — 0.1%
+                </div>
+            </div>
+        </div>
+
+        <div id="profile" class="page">
+            <div class="glass-card">
+                <div style="font-size: 60px; cursor: pointer;" id="avatar-display" onclick="document.getElementById('avatar-input').click();">👤</div>
+                <input type="file" id="avatar-input" accept="image/*" style="display:none;">
+                <h3>Player One</h3>
+                <div style="margin-top:10px;">
+                    Уровень <span id="p-lvl">1</span> / 10
+                    <div class="bar" style="margin-top:5px;"><div class="fill" id="p-fill" style="background:#2ecc71; width:0%;"></div></div>
+                </div>
+                <div style="margin-top:20px; font-size:28px; color:var(--ton); font-weight:bold;">
+                    <span id="profile-bal">0.000</span> TON
+                </div>
+                <button class="btn-boost" style="width:100%; padding:15px; margin-top:15px;" onclick="withdraw()">Вывести средства</button>
+            </div>
+            <div class="glass-card">
+                <h4 style="margin:0 0 10px 0; color:var(--ton)">Реферальная программа</h4>
+                <button class="btn-boost" style="width:100%; padding:15px;" onclick="addRef()">Пригласить друга (+500 $MTX)</button>
+            </div>
+            <div class="glass-card">
+                <h4 style="margin:0 0 10px 0; color:var(--gold)">Задания</h4>
+                <div class="item-row">
+                    <div style="text-align:left;"><b>Подписка на канал @mapst</b><br><small>В Telegram</small></div>
+                    <button id="task-tg_channel" class="btn-boost" onclick="startTask('tg_channel')">Подписаться и получить 500 $MTX</button>
+                </div>
+                <div class="item-row" style="border:none;">
+                    <div style="text-align:left;"><b>Подписка на группу @mat_chat</b><br><small>В Telegram</small></div>
+                    <button id="task-tg_group" class="btn-boost" onclick="startTask('tg_group')">Подписаться и получить 500 $MTX</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="nav">
+        <div class="nav-item active" onclick="nav('mining', this)"><span class="nav-icon">⛏️</span><span>Майнинг</span></div>
+        <div class="nav-item" onclick="nav('boosts', this)"><span class="nav-icon">🚀</span><span>Бусты</span></div>
+        <div class="nav-item" onclick="nav('top', this)"><span class="nav-icon">🏆</span><span>Топы</span></div>
+        <div class="nav-item" onclick="nav('roulette', this)"><span class="nav-icon">🎰</span><span>Рулетка</span></div>
+        <div class="nav-item" onclick="nav('profile', this)"><span class="nav-icon">👤</span><span>Профиль</span></div>
+    </div>
+
+    <script>
+        let state = {
+            bal: 0, ton: 0, totalClicks: 0, nrg: 200, maxNrg: 200, lvl: 1, tonRate: 0.1 / 10000, ip: null, avatar: null,
+            tasks: { tg_channel: false, tg_group: false },
+            rouletteBusy: false,
+            boosts: {
+                tap: { lvl: 1, price: 100 },
+                cap: { lvl: 1, price: 150 },
+                reg: { lvl: 1, price: 200 }
+            }
+        };
+
+        // Получаем IP и загружаем данные
+        fetch('https://api.ipify.org?format=json')
+        .then(response => response.json())
+        .then(data => {
+            state.ip = data.ip;
+            loadData();
+        })
+        .catch(() => {
+            state.ip = 'local';
+            loadData();
+        });
+
+        function loadData() {
+            let key = 'mat_clicker_' + state.ip;
+            let saved = localStorage.getItem(key);
+            if (saved) {
+                let savedState = JSON.parse(saved);
+                state = { ...state, ...savedState };
+            }
+            state.rouletteBusy = false;
+            updateUI();
+            displayAvatar();
+            createRouletteWheel();
+            const spinBtn = document.getElementById('roulette-spin-btn');
+            if (spinBtn) spinBtn.disabled = false;
+        }
+
+        function saveData() {
+            if (state.ip) {
+                let key = 'mat_clicker_' + state.ip;
+                localStorage.setItem(key, JSON.stringify(state));
+            }
+        }
+
+        const coin = document.getElementById('coin');
+
+        // ЗАГРУЗКА АВАТАРКИ
+        document.getElementById('avatar-input').addEventListener('change', function(e) {
+            let file = e.target.files[0];
+            if (!file) return;
+            
+            // Проверка типа файла
+            if (!file.type.startsWith('image/')) {
+                alert('Пожалуйста, загрузьте изображение!');
+                return;
+            }
+            
+            // Проверка размера (макс 1MB)
+            if (file.size > 1000000) {
+                alert('Размер файла не должен превышать 1MB!');
+                return;
+            }
+            
+            let reader = new FileReader();
+            reader.onload = function(event) {
+                state.avatar = event.target.result;
+                saveData();
+                displayAvatar();
+            };
+            reader.onerror = function() {
+                alert('Ошибка при загрузке файла!');
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function displayAvatar() {
+            let avatarDiv = document.getElementById('avatar-display');
+            if (state.avatar) {
+                avatarDiv.style.backgroundImage = `url(${state.avatar})`;
+                avatarDiv.style.backgroundSize = 'cover';
+                avatarDiv.style.backgroundPosition = 'center';
+                avatarDiv.innerText = '';
+            } else {
+                avatarDiv.style.backgroundImage = 'none';
+                avatarDiv.innerText = '👤';
+            }
+        }
+
+        // КЛИК (РАБОТАЕТ НА ТЕЛЕФОНЕ)
+        coin.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.targetTouches.length; i++) {
+                handleTap(e.targetTouches[i].clientX, e.targetTouches[i].clientY);
+            }
+        });
+
+        // ДЛЯ ПРОВЕРКИ НА ПК
+        coin.addEventListener('mousedown', (e) => {
+            handleTap(e.clientX, e.clientY);
+        });
+
+        function handleTap(x, y) {
+            let power = state.boosts.tap.lvl;
+            if (state.nrg < power) return;
+
+            state.bal += power;
+            state.totalClicks += power;
+            state.nrg -= power;
+
+            if (navigator.vibrate) navigator.vibrate(10);
+
+            // Анимация цифр
+            const fly = document.createElement('div');
+            fly.className = 'fly';
+            fly.innerText = `+${power}`;
+            fly.style.left = (x - 20) + 'px';
+            fly.style.top = (y - 40) + 'px';
+            document.body.appendChild(fly);
+            setTimeout(() => fly.remove(), 700);
+
+            saveData();
+            updateUI();
+        }
+
+        function buyBoost(type) {
+            let b = state.boosts[type];
+            let currentPrice = b.lvl >= 10 ? (b.lvl - 9) * 0.5 : b.price;
+            let isTon = b.lvl >= 10;
+
+            if (isTon) {
+                alert("Для уровней 11+ требуется TON на балансе (в разработке)");
+                return;
+            }
+
+            if (state.bal >= currentPrice) {
+                state.bal -= currentPrice;
+                b.lvl++;
+                b.price = Math.floor(b.price * 1.7);
+                if (type === 'cap') state.maxNrg += 50;
+                saveData();
+                updateUI();
+            } else {
+                alert("Недостаточно $MTX!");
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('bal').innerText = Math.floor(state.bal).toLocaleString();
+            document.getElementById('ton-bal').innerText = state.ton.toFixed(4);
+            document.getElementById('nrg').innerText = state.nrg;
+            document.getElementById('max-nrg').innerText = state.maxNrg;
+            document.getElementById('nrg-fill').style.width = (state.nrg / state.maxNrg * 100) + '%';
+            
+            // Бусты
+            document.getElementById('b-tap-lvl').innerText = state.boosts.tap.lvl;
+            document.getElementById('b-tap-price').innerText = state.boosts.tap.lvl >= 10 ? (state.boosts.tap.lvl - 9) * 0.5 : state.boosts.tap.price;
+            document.getElementById('b-tap-cur').innerText = state.boosts.tap.lvl >= 10 ? "TON" : "$MTX";
+            
+            document.getElementById('b-cap-val').innerText = state.maxNrg;
+            document.getElementById('b-cap-price').innerText = state.boosts.cap.lvl >= 10 ? (state.boosts.cap.lvl - 9) * 0.5 : state.boosts.cap.price;
+            document.getElementById('b-cap-cur').innerText = state.boosts.cap.lvl >= 10 ? "TON" : "$MTX";
+            
+            document.getElementById('b-reg-lvl').innerText = state.boosts.reg.lvl;
+            document.getElementById('b-reg-price').innerText = state.boosts.reg.lvl >= 10 ? (state.boosts.reg.lvl - 9) * 0.5 : state.boosts.reg.price;
+            document.getElementById('b-reg-cur').innerText = state.boosts.reg.lvl >= 10 ? "TON" : "$MTX";
+
+            // Профиль и уровни
+            let pLvl = Math.min(10, Math.floor(state.totalClicks / 500) + 1);
+            document.getElementById('p-lvl').innerText = pLvl;
+            document.getElementById('lvl-display').innerText = pLvl;
+            document.getElementById('p-fill').style.width = (state.totalClicks % 500 / 5) + '%';
+            document.getElementById('profile-bal').innerText = state.ton.toFixed(3);
+
+            updateTaskButtons();
+        }
+
+        function nav(id, el) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
+            document.getElementById(id).classList.add('active-page');
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            el.classList.add('active');
+            if(id === 'top') {
+                let topPlayers = [
+                    { name: 'Alexey', bal: 9850, avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=Alexey` },
+                    { name: 'Marina', bal: 8500, avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=Marina` },
+                    { name: 'Daniil', bal: 7200, avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=Daniil` },
+                    { name: 'Vera', bal: 6900, avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=Vera` },
+                    { name: 'Kirill', bal: 6100, avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=Kirill` },
+                    { name: 'Oksana', bal: 5400, avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=Oksana` },
+                    { name: 'Nikita', bal: 4800, avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=Nikita` },
+                    { name: 'Yana', bal: 4200, avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=Yana` },
+                    { name: 'Anton', bal: 3600, avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=Anton` },
+                    { name: 'Sofia', bal: 3100, avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=Sofia` }
+                ];
+                
+                // Добавляем игрока и сортируем
+                let allPlayers = [...topPlayers, { name: 'Player One', bal: state.bal, avatar: state.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=PlayerOne` }];
+                allPlayers.sort((a, b) => b.bal - a.bal);
+
+                // Удаляем старую карточку игрока вне топ-10, если она осталась
+                let oldExtra = document.querySelector('#top-list + .glass-card');
+                if (oldExtra) oldExtra.remove();
+                
+                // Показываем топ-10
+                let html = '';
+                for (let i = 0; i < Math.min(10, allPlayers.length); i++) {
+                    let isMe = allPlayers[i].name === 'Player One';
+                    let medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '⭐';
+                    let avatarUrl = allPlayers[i].avatar;
+                    html += `<div class="item-row" ${isMe ? 'style="border: 2px solid var(--gold); background: rgba(255,215,0,0.1);"' : ''}><span style="font-size:20px; margin-right:10px;">${medal}</span><img src="${avatarUrl}" style="width:40px; height:40px; border-radius:50%; margin-right:10px; object-fit:cover;" onerror="this.src='https://api.dicebear.com/7.x/avataaars/svg?seed=default'"><span style="font-weight:bold; font-size:16px; flex:1;">${allPlayers[i].name}</span><span style="color:${isMe ? 'var(--gold)' : 'var(--ton)'}; font-weight:bold; font-size:16px;">${allPlayers[i].bal.toLocaleString()}</span></div>`;
+                }
+                document.getElementById('top-list').innerHTML = html;
+                
+                // Если игрок вне топ-10, показываем его отдельно
+                let myPos = allPlayers.findIndex(p => p.name === 'Player One') + 1;
+                if (myPos > 10) {
+                    let myAvatar = state.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=PlayerOne`;
+                    document.getElementById('top-list').insertAdjacentHTML('afterend', 
+                        `<div class="glass-card" style="border: 2px solid var(--gold); margin-top: 15px; background: rgba(255,215,0,0.1);">
+                            <div class="item-row" style="border:none;">
+                                <img src="${myAvatar}" style="width:40px; height:40px; border-radius:50%; margin-right:10px; object-fit:cover;" onerror="this.src='https://api.dicebear.com/7.x/avataaars/svg?seed=default'">
+                                <span style="font-weight:bold; font-size:16px; flex:1;">Вы</span>
+                                <span style="color:var(--gold); font-weight:bold; font-size:16px;">#${myPos}</span>
+                            </div>
+                        </div>`
+                    );
+                }
+            }
+        }
+
+        function addRef() {
+            state.bal += 500;
+            alert("Друг приглашен! +500 $MTX");
+            saveData();
+            updateUI();
+        }
+
+        function startTask(type) {
+            if (state.tasks[type]) return;
+            let btn = document.getElementById('task-' + type);
+            btn.innerText = 'Проверить';
+            btn.onclick = null;
+            setTimeout(() => {
+                btn.onclick = () => completeTask(type);
+            }, 5000);
+        }
+
+        function completeTask(type) {
+            if (state.tasks[type]) return;
+            state.tasks[type] = true;
+            state.bal += 500;
+            alert("Задание выполнено! +500 $MTX");
+            saveData();
+            updateUI();
+        }
+
+        function updateTaskButtons() {
+            ['tg_channel', 'tg_group'].forEach(t => {
+                let btn = document.getElementById('task-' + t);
+                if (state.tasks[t]) {
+                    btn.innerText = 'Выполнено';
+                    btn.onclick = null;
+                    btn.style.opacity = '0.5';
+                } else {
+                    btn.innerText = 'Подписаться и получить 500 $MTX';
+                    btn.onclick = () => startTask(t);
+                    btn.style.opacity = '1';
+                }
+            });
+        }
+
+        const rouletteOptions = [
+            { label: '100 $MTX', type: 'MTX', amount: 100, weight: 250 },
+            { label: '200 $MTX', type: 'MTX', amount: 200, weight: 200 },
+            { label: '300 $MTX', type: 'MTX', amount: 300, weight: 150 },
+            { label: '500 $MTX', type: 'MTX', amount: 500, weight: 90 },
+            { label: '1000 $MTX', type: 'MTX', amount: 1000, weight: 40 },
+            { label: '0.01 TON', type: 'TON', amount: 0.01, weight: 8 },
+            { label: '0.05 TON', type: 'TON', amount: 0.05, weight: 4 },
+            { label: '0.1 TON', type: 'TON', amount: 0.1, weight: 2 },
+            { label: '0.5 TON', type: 'TON', amount: 0.5, weight: 1 }
+        ];
+
+        function getRouletteIndex() {
+            let total = rouletteOptions.reduce((sum, item) => sum + item.weight, 0);
+            let pick = Math.random() * total;
+            for (let i = 0; i < rouletteOptions.length; i++) {
+                pick -= rouletteOptions[i].weight;
+                if (pick <= 0) return i;
+            }
+            return rouletteOptions.length - 1;
+        }
+
+        function createRouletteWheel() {
+            const wheel = document.getElementById('roulette-wheel');
+            const button = document.getElementById('roulette-spin-btn');
+            wheel.innerHTML = '';
+            const segmentAngle = 360 / rouletteOptions.length;
+            rouletteOptions.forEach((option, index) => {
+                const segment = document.createElement('div');
+                segment.className = 'segment';
+                segment.style.transform = `rotate(${index * segmentAngle}deg)`;
+                wheel.appendChild(segment);
+
+                const label = document.createElement('div');
+                label.className = 'label';
+                label.style.left = '50%';
+                label.style.top = '50%';
+                label.style.transform = `rotate(${index * segmentAngle}deg) translate(120px, 0) rotate(${-index * segmentAngle}deg)`;
+                label.style.color = option.type === 'TON' ? '#ff6c6c' : '#ffe97d';
+                label.style.background = option.type === 'TON' ? 'rgba(120, 10, 10, 0.65)' : 'rgba(90, 55, 0, 0.55)';
+                label.textContent = option.label;
+                segment.appendChild(label);
+            });
+            if (button) {
+                button.disabled = false;
+            }
+        }
+
+        function spawnRouletteStars() {
+            const wheel = document.getElementById('roulette-wheel');
+            for (let i = 0; i < 12; i++) {
+                const star = document.createElement('div');
+                star.className = 'roulette-star';
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 120 + Math.random() * 40;
+                const x = Math.cos(angle) * radius;
+                const y = Math.sin(angle) * radius;
+                star.style.left = '50%';
+                star.style.top = '50%';
+                star.style.setProperty('--tx', `${x}px`);
+                star.style.setProperty('--ty', `${y}px`);
+                star.style.transform = 'translate(-50%, -50%)';
+                wheel.appendChild(star);
+                setTimeout(() => star.remove(), 1100);
+            }
+        }
+
+        function spinRoulette() {
+            if (state.rouletteBusy) return;
+            state.rouletteBusy = true;
+            const button = document.getElementById('roulette-spin-btn');
+            const wheel = document.getElementById('roulette-wheel');
+            const resultText = document.getElementById('roulette-result');
+            button.disabled = true;
+            const selectedIndex = getRouletteIndex();
+            const segmentAngle = 360 / rouletteOptions.length;
+            const targetAngle = 360 * 6 + (360 - (selectedIndex * segmentAngle + segmentAngle / 2));
+            wheel.style.transition = 'transform 3.8s cubic-bezier(0.25, 0.1, 0.25, 1)';
+            wheel.style.transform = `rotate(${targetAngle}deg)`;
+            resultText.innerText = 'Крутим...';
+            spawnRouletteStars();
+            setTimeout(() => {
+                wheel.style.transition = 'none';
+                const currentAngle = targetAngle % 360;
+                wheel.style.transform = `rotate(${currentAngle}deg)`;
+                let prize = rouletteOptions[selectedIndex];
+                if (prize.type === 'MTX') {
+                    state.bal += prize.amount;
+                } else {
+                    state.ton += prize.amount;
+                }
+                saveData();
+                updateUI();
+                resultText.innerHTML = `<span class="roulette-won">Вы выиграли ${prize.label}!</span>`;
+                state.rouletteBusy = false;
+                button.disabled = false;
+            }, 3900);
+        }
+
+        function withdraw() {
+            if (state.ton < 1) {
+                alert('Минимальная сумма для вывода: 1 TON');
+                return;
+            }
+            alert(`Запрос на вывод ${state.ton.toFixed(3)} TON отправлен!\n\nВ скором времени средства поступят в кошелек.`);
+            state.ton = 0;
+            saveData();
+            updateUI();
+        }
+
+        // КОМЕТЫ (АНИМАЦИЯ)
+        setInterval(() => {
+            const c = document.createElement('div');
+            c.className = 'comet';
+            c.style.top = Math.random() * 40 + '%';
+            document.getElementById('stars-container').appendChild(c);
+            setTimeout(() => c.remove(), 2000);
+        }, 2000);
+
+        // РЕГЕНЕРАЦИЯ
+        setInterval(() => {
+            if (state.nrg < state.maxNrg) {
+                state.nrg += state.boosts.reg.lvl;
+                if (state.nrg > state.maxNrg) state.nrg = state.maxNrg;
+                saveData();
+                updateUI();
+            }
+        }, 2500);
+        // updateUI(); // Убрано, так как вызывается в loadData
+    </script>
+</body>
+</html>
