@@ -98,10 +98,10 @@
         @keyframes flyUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-150px) scale(1.2); } }
 
         /* РУЛЕТКА */
-        .roulette-wheel { width: 330px; height: 330px; border-radius: 50%; background: radial-gradient(circle at center, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.03) 38%, rgba(17,32,60,0.95) 100%); border: 14px solid rgba(13,35,72,0.95); position: relative; margin: 0 auto; overflow: hidden; box-shadow: 0 0 60px rgba(255,215,100,0.18), inset 0 0 0 1px rgba(255,255,255,0.05); }
+        .roulette-wheel { width: 330px; height: 330px; border-radius: 50%; background: radial-gradient(circle at center, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.03) 38%, rgba(17,32,60,0.95) 100%); border: 14px solid rgba(13,35,72,0.95); position: relative; margin: 14px auto 0; overflow: hidden; box-shadow: 0 0 60px rgba(255,215,100,0.18), inset 0 0 0 1px rgba(255,255,255,0.05); }
         .roulette-wheel::before { content: ''; position: absolute; inset: 18px; border-radius: 50%; background: radial-gradient(circle at center, rgba(255,255,255,0.18), rgba(255,255,255,0.02) 40%, transparent 56%); z-index: 1; pointer-events: none; }
         .roulette-wheel::after { content: 'M'; position: absolute; top: 50%; left: 50%; width: 62px; height: 62px; margin: -31px; border-radius: 50%; background: linear-gradient(135deg, #FFB347 0%, #FF8C00 50%, #E67E22 100%); box-shadow: 0 0 0 6px rgba(255,255,255,0.2), 0 0 30px rgba(255,165,0,0.22); z-index: 5; color: #ffffff; font-size: 34px; font-weight: 900; display: flex; align-items: center; justify-content: center; line-height: 1; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
-        .roulette-pointer { position: absolute; left: 50%; top: 294px; width: 0; height: 0; border-left: 18px solid transparent; border-right: 18px solid transparent; border-top: 24px solid #ffffff; transform: translateX(-50%); z-index: 6; pointer-events: none; filter: drop-shadow(0 0 18px rgba(255,255,255,0.6)); }
+        .roulette-pointer { position: absolute; left: 50%; top: 20px; width: 0; height: 0; border-left: 18px solid transparent; border-right: 18px solid transparent; border-top: 24px solid #ffffff; transform: translateX(-50%); z-index: 6; pointer-events: none; filter: drop-shadow(0 0 18px rgba(255,255,255,0.6)); }
         .roulette-wheel .segment { position: absolute; width: 50%; height: 50%; top: 0; right: 50%; transform-origin: 100% 100%; clip-path: polygon(0 0, 100% 0, 100% 100%); border: 1px solid rgba(255,255,255,0.12); overflow: visible; }
         .roulette-wheel .segment:nth-child(1) { background: linear-gradient(140deg, #ff4a1a, #ff4c1a); }
         .roulette-wheel .segment:nth-child(odd):not(:first-child) { background: linear-gradient(140deg, #d3931c, #c48f20); }
@@ -193,8 +193,8 @@
             <div class="glass-card">
                 <div style="font-size: 60px; cursor: pointer;" id="avatar-display" onclick="document.getElementById('avatar-input').click();">👤</div>
                 <input type="file" id="avatar-input" accept="image/*" style="display:none;">
-                <h3>Player One</h3>
-                <div style="margin-top:10px;">
+                <h3 id="profile-name">Player One</h3>
+                <div style="margin-top:10px; width:100%; text-align:left;">
                     Уровень <span id="p-lvl">1</span> / 10
                     <div class="bar" style="margin-top:5px;"><div class="fill" id="p-fill" style="background:#2ecc71; width:0%;"></div></div>
                 </div>
@@ -203,9 +203,23 @@
                 </div>
                 <button class="btn-boost" style="width:100%; padding:15px; margin-top:15px;" onclick="withdraw()">Вывести средства</button>
             </div>
-            <div class="glass-card">
+            <div class="glass-card referral-card">
                 <h4 style="margin:0 0 10px 0; color:var(--ton)">Реферальная программа</h4>
-                <button class="btn-boost" style="width:100%; padding:15px;" onclick="addRef()">Пригласить друга (+500 $MTX)</button>
+                <div class="item-row" style="flex-wrap: wrap; gap: 10px; align-items: center;">
+                    <div style="text-align:left; flex:1; word-break: break-all;">
+                        <b>Ваша ссылка</b><br>
+                        <small id="referral-link">Загрузка...</small>
+                    </div>
+                    <button class="btn-boost" style="flex:none; min-width: 140px;" onclick="copyReferralLink()">Скопировать</button>
+                </div>
+                <div class="item-row" style="border:none; justify-content: space-between; margin-top: 10px;">
+                    <span>Приглашено друзей</span>
+                    <strong id="referrals-count">0</strong>
+                </div>
+                <button class="btn-boost" style="width:100%; padding:15px; margin-top:10px;" onclick="shareReferral()">Поделиться</button>
+                <div style="margin-top:10px; font-size:13px; color: rgba(255,255,255,0.75); text-align:left;">
+                    Держи уникальную ссылку — друзья получат +500 $MTX при первом входе, а ты сохраняешь прогресс навсегда.
+                </div>
             </div>
             <div class="glass-card">
                 <h4 style="margin:0 0 10px 0; color:var(--gold)">Задания</h4>
@@ -232,6 +246,9 @@
     <script>
         let state = {
             bal: 0, ton: 0, totalClicks: 0, nrg: 200, maxNrg: 200, lvl: 1, tonRate: 0.1 / 10000, ip: null, avatar: null,
+            userId: null, username: 'Player One', telegramAvatar: null,
+            refCode: null, referrals: 0, referredBy: null, refClaimed: false, referralBonus: 500,
+            lastActive: Date.now(),
             tasks: { tg_channel: false, tg_group: false },
             rouletteBusy: false,
             boosts: {
@@ -242,6 +259,11 @@
         };
 
         // Получаем IP и загружаем данные
+        initTelegramUser();
+        const urlParams = new URLSearchParams(window.location.search);
+        const ref = urlParams.get('ref');
+        if (ref) state.referredBy = ref;
+
         fetch('https://api.ipify.org?format=json')
         .then(response => response.json())
         .then(data => {
@@ -253,14 +275,71 @@
             loadData();
         });
 
+        function getStorageKey() {
+            if (state.userId) return 'mat_clicker_user_' + state.userId;
+            if (state.ip) return 'mat_clicker_' + state.ip;
+            return 'mat_clicker_local';
+        }
+
+        function initTelegramUser() {
+            const tg = window.Telegram?.WebApp;
+            if (!tg) return;
+            const payload = tg.initDataUnsafe?.user;
+            if (!payload) return;
+            state.userId = payload.id || state.userId;
+            state.username = payload.username ? '@' + payload.username : payload.first_name || state.username;
+            if (payload.photo_url) state.telegramAvatar = payload.photo_url;
+            if (payload.first_name && !payload.username) state.username = payload.first_name;
+        }
+
+        function getOrCreateRefCode() {
+            if (state.refCode) return state.refCode;
+            const base = state.username.replace(/[^a-zA-Z0-9]/g, '').slice(0, 4).toUpperCase() || 'MAT';
+            const suffix = Math.random().toString(36).substring(2, 8).toUpperCase();
+            state.refCode = base + suffix;
+            return state.refCode;
+        }
+
+        function restoreOfflineEnergy() {
+            if (!state.lastActive) return;
+            const elapsed = Date.now() - state.lastActive;
+            if (elapsed < 2500) return;
+            const gain = Math.floor(elapsed / 2500) * state.boosts.reg.lvl;
+            if (gain > 0) {
+                state.nrg = Math.min(state.maxNrg, state.nrg + gain);
+            }
+        }
+
+        function applyReferral() {
+            if (!state.referredBy || state.refClaimed || state.referredBy === state.refCode) return;
+            state.bal += state.referralBonus;
+            state.refClaimed = true;
+            state.referredBy = null;
+            alert(`Реферальный бонус +${state.referralBonus} $MTX за первый вход по ссылке!`);
+        }
+
+        function updateReferralUI() {
+            document.getElementById('referrals-count').innerText = state.referrals;
+            const referralLink = `${location.origin + location.pathname}?ref=${encodeURIComponent(getOrCreateRefCode())}`;
+            const referralLinkElem = document.getElementById('referral-link');
+            referralLinkElem.innerText = referralLink;
+            referralLinkElem.title = referralLink;
+        }
+
         function loadData() {
-            let key = 'mat_clicker_' + state.ip;
+            const key = getStorageKey();
             let saved = localStorage.getItem(key);
+            if (!saved && state.userId && state.ip) {
+                saved = localStorage.getItem('mat_clicker_' + state.ip);
+            }
             if (saved) {
-                let savedState = JSON.parse(saved);
+                const savedState = JSON.parse(saved);
                 state = { ...state, ...savedState };
             }
+            restoreOfflineEnergy();
             state.rouletteBusy = false;
+            if (!state.refCode) getOrCreateRefCode();
+            applyReferral();
             updateUI();
             displayAvatar();
             createRouletteWheel();
@@ -269,11 +348,17 @@
         }
 
         function saveData() {
-            if (state.ip) {
-                let key = 'mat_clicker_' + state.ip;
-                localStorage.setItem(key, JSON.stringify(state));
-            }
+            state.lastActive = Date.now();
+            const key = getStorageKey();
+            localStorage.setItem(key, JSON.stringify(state));
         }
+
+        window.addEventListener('beforeunload', saveData);
+        window.addEventListener('focus', () => {
+            restoreOfflineEnergy();
+            saveData();
+            updateUI();
+        });
 
         const coin = document.getElementById('coin');
 
@@ -308,14 +393,47 @@
 
         function displayAvatar() {
             let avatarDiv = document.getElementById('avatar-display');
-            if (state.avatar) {
-                avatarDiv.style.backgroundImage = `url(${state.avatar})`;
+            let photo = state.avatar || state.telegramAvatar;
+            if (photo) {
+                avatarDiv.style.backgroundImage = `url(${photo})`;
                 avatarDiv.style.backgroundSize = 'cover';
                 avatarDiv.style.backgroundPosition = 'center';
                 avatarDiv.innerText = '';
             } else {
                 avatarDiv.style.backgroundImage = 'none';
                 avatarDiv.innerText = '👤';
+            }
+        }
+
+        function copyReferralLink() {
+            const link = `${location.origin + location.pathname}?ref=${encodeURIComponent(getOrCreateRefCode())}`;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(link);
+            } else {
+                const temp = document.createElement('textarea');
+                temp.value = link;
+                document.body.appendChild(temp);
+                temp.select();
+                document.execCommand('copy');
+                temp.remove();
+            }
+            alert('Реферальная ссылка скопирована!');
+        }
+
+        function shareReferral() {
+            state.referrals += 1;
+            saveData();
+            updateReferralUI();
+            const link = `${location.origin + location.pathname}?ref=${encodeURIComponent(getOrCreateRefCode())}`;
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Играй в MAT Clicker',
+                    text: 'Заработай бонусы в MAT Clicker — вступай по моей ссылке!',
+                    url: link
+                }).catch(() => copyReferralLink());
+            } else {
+                copyReferralLink();
+                alert('Ссылка готова к отправке. Вставьте её в чат с другом.');
             }
         }
 
@@ -403,7 +521,8 @@
             document.getElementById('lvl-display').innerText = pLvl;
             document.getElementById('p-fill').style.width = (state.totalClicks % 500 / 5) + '%';
             document.getElementById('profile-bal').innerText = state.ton.toFixed(3);
-
+            document.getElementById('profile-name').innerText = state.username || 'Player One';
+            updateReferralUI();
             updateTaskButtons();
         }
 
@@ -427,7 +546,7 @@
                 ];
                 
                 // Добавляем игрока и сортируем
-                let allPlayers = [...topPlayers, { name: 'Player One', bal: state.bal, avatar: state.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=PlayerOne` }];
+                let allPlayers = [...topPlayers, { name: state.username || 'Player One', bal: state.bal, avatar: state.avatar || state.telegramAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=PlayerOne` }];
                 allPlayers.sort((a, b) => b.bal - a.bal);
 
                 // Удаляем старую карточку игрока вне топ-10, если она осталась
@@ -437,7 +556,7 @@
                 // Показываем топ-10
                 let html = '';
                 for (let i = 0; i < Math.min(10, allPlayers.length); i++) {
-                    let isMe = allPlayers[i].name === 'Player One';
+                    let isMe = allPlayers[i].name === (state.username || 'Player One');
                     let medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '⭐';
                     let avatarUrl = allPlayers[i].avatar;
                     html += `<div class="item-row" ${isMe ? 'style="border: 2px solid var(--gold); background: rgba(255,215,0,0.1);"' : ''}><span style="font-size:20px; margin-right:10px;">${medal}</span><img src="${avatarUrl}" style="width:40px; height:40px; border-radius:50%; margin-right:10px; object-fit:cover;" onerror="this.src='https://api.dicebear.com/7.x/avataaars/svg?seed=default'"><span style="font-weight:bold; font-size:16px; flex:1;">${allPlayers[i].name}</span><span style="color:${isMe ? 'var(--gold)' : 'var(--ton)'}; font-weight:bold; font-size:16px;">${allPlayers[i].bal.toLocaleString()}</span></div>`;
@@ -462,20 +581,24 @@
         }
 
         function addRef() {
-            state.bal += 500;
-            alert("Друг приглашен! +500 $MTX");
-            saveData();
-            updateUI();
+            shareReferral();
         }
 
         function startTask(type) {
             if (state.tasks[type]) return;
+            const links = {
+                tg_channel: 'https://t.me/mapst',
+                tg_group: 'https://t.me/mat_chat'
+            };
+            const link = links[type] || 'https://t.me/mapst';
+            if (window.Telegram?.WebApp?.openLink) {
+                window.Telegram.WebApp.openLink(link);
+            } else {
+                window.open(link, '_blank');
+            }
             let btn = document.getElementById('task-' + type);
-            btn.innerText = 'Проверить';
-            btn.onclick = null;
-            setTimeout(() => {
-                btn.onclick = () => completeTask(type);
-            }, 5000);
+            btn.innerText = 'Проверить подписку';
+            btn.onclick = () => completeTask(type);
         }
 
         function completeTask(type) {
